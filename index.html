@@ -296,5 +296,96 @@ function update(){
 }
 setInterval(update,1000); update();
 </script>
-<!-- ===== REMOT HP - VERSI 7 ===== -->
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script
+ <!-- ===== REMOT HP - VERSI 7 ===== -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+// 1. Bikin Kode Remot unik per masjid
+let kodeRemot = localStorage.getItem('kodeRemot') || Math.random().toString(36).substring(2,8).toUpperCase();
+localStorage.setItem('kodeRemot', kodeRemot);
+
+// 2. Tampilkan tombol Remot di TV
+let btnRemot = document.createElement('div');
+btnRemot.innerHTML = `<button onclick="tampilRemot()" style="background:#25D366;color:white;border:none;padding:10px 14px;border-radius:50px;font-weight:bold;cursor:pointer">📱 Remot HP</button>`;
+document.getElementById('btnBar').appendChild(btnRemot);
+
+let peer = null, connList = [];
+function initPeer(){
+  if(peer) return;
+  peer = new Peer('masjid-'+kodeRemot);
+  peer.on('connection', (conn)=>{
+    connList.push(conn);
+    conn.on('data', (data)=>{
+      // HP kirim perintah, TV yang eksekusi
+      if(data.type==='tambahSlide'){ config.slides.push(data.slide); localStorage.setItem('configV6', JSON.stringify(config)); terapkan(); }
+      if(data.type==='hapusSlide'){ config.slides.splice(data.index,1); localStorage.setItem('configV6', JSON.stringify(config)); terapkan(); }
+      if(data.type==='gantiRunning'){ config.running=data.teks; localStorage.setItem('configV6', JSON.stringify(config)); terapkan(); }
+      if(data.type==='gantiNama'){ config.nama=data.nama; localStorage.setItem('configV6', JSON.stringify(config)); terapkan(); }
+      if(data.type==='jumbotron'){ mulaiJumbotron(); }
+      if(data.type==='stopJumbotron'){ tutupJumbotron(); }
+      if(data.type==='mute'){ config.suara = config.suara==='on'?'off':'on'; localStorage.setItem('configV6', JSON.stringify(config)); terapkan(); }
+      if(data.type==='tesAdzan'){ tesAdzan(); }
+      if(data.type==='tesIqomah'){ tesIqomah(); }
+      if(data.type==='reload'){ location.reload(); }
+      // Kirim balik daftar slide terbaru ke HP
+      conn.send({type:'update', config: config});
+    });
+  });
+}
+initPeer();
+
+function tampilRemot(){
+  // Bikin popup QR di TV
+  let urlRemot = location.href.split('?')[0] + '?remot=' + kodeRemot;
+  let div = document.createElement('div');
+  div.id='popupRemot';
+  div.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);z-index:200;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px';
+  div.innerHTML=`
+    <div style="background:white;color:#333;padding:25px;border-radius:20px;max-width:400px;width:100%">
+      <h2>📱 Remot HP</h2>
+      <p style="margin:10px 0">Scan QR ini dari HP takmir:</p>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(urlRemot)}" style="width:200px;height:200px">
+      <p style="margin:10px 0;font-size:22px;font-weight:900;letter-spacing:3px">KODE: ${kodeRemot}</p>
+      <p style="font-size:13px;color:#888">Atau buka di HP: <br><b>${urlRemot}</b></p>
+      <button onclick="document.getElementById('popupRemot').remove()" style="margin-top:15px;padding:12px;width:100%;border:none;background:#0a3d2e;color:white;border-radius:10px;font-weight:bold">Tutup</button>
+    </div>`;
+  document.body.appendChild(div);
+}
+
+// 3. MODE HP - Kalau dibuka dari HP dengan ?remot=KODE
+if(location.search.includes('remot=')){
+  let targetKode = new URLSearchParams(location.search).get('remot');
+  document.body.innerHTML = `
+    <div style="padding:20px;max-width:500px;margin:0 auto;color:white">
+      <h2 style="text-align:center">📱 REMOT MASJID</h2>
+      <p style="text-align:center;opacity:.8">Terhubung ke: ${targetKode}</p>
+      <p id="statusRemot" style="text-align:center;background:#ffc107;color:#333;padding:10px;border-radius:10px;margin:15px 0;font-weight:bold">Menghubungkan...</p>
+      <label style="font-weight:bold">Ganti Running Text</label>
+      <input id="rRunning" placeholder="Tulis pengumuman..." style="width:100%;padding:12px;border-radius:10px;border:none;margin:8px 0">
+      <button onclick="kirim({type:'gantiRunning', teks: document.getElementById('rRunning').value})" style="width:100%;padding:12px;background:#25D366;border:none;border-radius:10px;font-weight:bold">Kirim ke TV</button>
+      <label style="font-weight:bold;display:block;margin-top:20px">Tambah Slide Foto / Pengumuman</label>
+      <input id="rJudul" placeholder="Judul slide" style="width:100%;padding:12px;border-radius:10px;border:none;margin:8px 0">
+      <input id="rIsi" placeholder="Isi slide" style="width:100%;padding:12px;border-radius:10px;border:none;margin:8px 0">
+      <input id="rGambar" placeholder="Link foto (opsional) - bisa dari Google Drive" style="width:100%;padding:12px;border-radius:10px;border:none;margin:8px 0">
+      <button onclick="kirim({type:'tambahSlide', slide:{judul:document.getElementById('rJudul').value, isi:document.getElementById('rIsi').value, gambar:document.getElementById('rGambar').value, durasi:10}})" style="width:100%;padding:12px;background:#ffc107;border:none;border-radius:10px;font-weight:bold;margin-top:8px">➕ Tambah Slide ke TV</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px">
+        <button onclick="kirim({type:'jumbotron'})" style="padding:15px;border:none;border-radius:10px;font-weight:bold">📺 Jumbotron</button>
+        <button onclick="kirim({type:'mute'})" style="padding:15px;border:none;border-radius:10px;font-weight:bold">🔊 Mute / Unmute</button>
+        <button onclick="kirim({type:'tesAdzan'})" style="padding:15px;border:none;border-radius:10px;font-weight:bold">▶ Tes Adzan</button>
+        <button onclick="kirim({type:'reload'})" style="padding:15px;border:none;border-radius:10px;font-weight:bold;background:#e53935;color:white">🔄 Restart TV</button>
+      </div>
+      <div id="listSlideHP" style="margin-top:20px"></div>
+      <p style="font-size:12px;opacity:.6;text-align:center;margin-top:20px">Foto slide: Upload foto ke Google Drive > Share > Copy Link > Paste di kolom Link Foto</p>
+    </div>`;
+  // Hubungkan HP ke TV
+  let peerHP = new Peer();
+  peerHP.on('open', ()=>{
+    let c = peerHP.connect('masjid-'+targetKode);
+    window._connRemot = c;
+    c.on('open', ()=>{ document.getElementById('statusRemot').textContent='✅ Terhubung ke TV!'; document.getElementById('statusRemot').style.background='#25D366'; document.getElementById('statusRemot').style.color='white'; });
+    c.on('data', (d)=>{ if(d.type==='update'){ let html='<h3>Slide di TV:</h3>'; d.config.slides.forEach((s,i)=>{ html+=`<div style="background:rgba(255,255,255,.15);padding:10px;border-radius:10px;margin-top:8px">${s.judul} <button onclick="kirim({type:'hapusSlide', index:${i}})" style="float:right;background:red;color:white;border:none;padding:4px 8px;border-radius:6px">Hapus</button></div>`; }); document.getElementById('listSlideHP').innerHTML=html; } });
+  });
+  window.kirim = (data)=>{ if(window._connRemot) window._connRemot.send(data); alert('Dikirim ke TV!'); };
+}
+</script>
+</body>
+</html>
