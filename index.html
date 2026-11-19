@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jadwal Sholat TV - Final</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+  body{background:#0a3d2e;color:white;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;overflow:hidden}
+  .masjid{font-size:28px;font-weight:bold;text-align:center}
+  .kota{font-size:16px;opacity:.8}
+  .jam{font-size:110px;font-weight:900;line-height:1;margin:20px 0 5px}
+  .tanggal{font-size:20px;margin-bottom:10px;text-align:center}
+  .info{font-size:13px;opacity:.7;margin-bottom:15px}
+  .countdown{background:#ffc107;color:#0a3d2e;padding:12px 25px;border-radius:50px;font-weight:bold;font-size:20px;margin-bottom:25px}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;width:100%;max-width:900px}
+  .card{background:rgba(255,255,255,.12);border-radius:15px;padding:18px 10px;text-align:center}
+  .card.active{background:#ffc107;color:#0a3d2e;transform:scale(1.05)}
+  .card .nama{font-size:16px}
+  .card .waktu{font-size:32px;font-weight:900;margin-top:5px}
+  .running{margin-top:30px;background:rgba(0,0,0,.3);width:100%;max-width:900px;padding:12px;border-radius:10px;overflow:hidden;white-space:nowrap}
+  .running span{display:inline-block;animation:jalan 20s linear infinite}
+  @keyframes jalan{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
+  #btnBar{position:fixed;bottom:15px;right:15px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;z-index:50}
+  #btnBar button{background:white;color:#0a3d2e;border:none;padding:10px 14px;border-radius:50px;font-weight:bold;cursor:pointer}
+  #layarIqomah{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:99;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+  #layarIqomah h1{font-size:32px;color:#ffc107}
+  #layarIqomah .waktuBesar{font-size:180px;font-weight:900;line-height:1;margin:10px 0}
+  #layarJumbotron{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:98;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;background-size:cover;background-position:center}
+  #layarJumbotron::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55)}
+  #layarJumbotron > *{position:relative;z-index:1}
+  #jJudul{font-size:48px;font-weight:900;color:#ffc107;line-height:1.1}
+  #jIsi{font-size:28px;margin-top:15px;max-width:800px;line-height:1.4}
+  #jDot{margin-top:20px;font-size:20px;letter-spacing:8px}
+  #jFooter{position:absolute;bottom:25px;left:0;right:0;font-size:18px}
+  #layarAdzan{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:97;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+  #layarAdzan h1{font-size:50px;color:#ffc107}
+  #layarAdzan p{font-size:22px;margin-top:15px}
+  #panel{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:15px;z-index:100;overflow:auto}
+  .box{background:white;color:#333;width:100%;max-width:520px;padding:20px;border-radius:15px;max-height:95vh;overflow:auto}
+  .box label{font-size:13px;font-weight:bold;display:block;margin-top:12px}
+  .box input,.box textarea,.box select{width:100%;padding:10px;margin-top:4px;border:1px solid #ccc;border-radius:8px}
+  .btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:bold;cursor:pointer;margin-top:12px}
+  .simpan{background:#0a3d2e;color:white}
+  .slideItem{background:#f5f5f5;padding:10px;border-radius:10px;margin-top:8px;font-size:13px}
+  .slideItem button{background:#e53935;color:white;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;float:right}
+  @media(max-width:600px){.jam{font-size:70px}.grid{grid-template-columns:repeat(2,1fr)}.card:last-child{grid-column:span 2}#layarIqomah .waktuBesar{font-size:110px}#jJudul{font-size:32px}#jIsi{font-size:20px}}
+</style>
+</head>
+<body>
+
+<div class="masjid" id="namaMasjid">MASJID AL-IKHLAS</div>
+<div class="kota" id="namaKota">Pekanbaru - Riau</div>
+<div class="jam" id="jam">00:00:00</div>
+<div class="tanggal" id="tanggal">...</div>
+<div class="info" id="infoKoordinat">...</div>
+<div class="countdown" id="countdown">Menghitung...</div>
+<div class="grid" id="jadwal"></div>
+<div class="running"><span id="teksJalan">Selamat Datang</span></div>
+
+<div id="btnBar">
+  <button onclick="toggleFullscreen()">⛶ TV</button>
+  <button onclick="mulaiJumbotron()" style="background:#ffc107">📺 Jumbotron</button>
+  <button id="btnSuara" onclick="toggleSuara()">🔊 Suara: ON</button>
+  <button onclick="tesAdzan()">▶ Tes Adzan</button>
+  <button onclick="bukaSetting()">⚙️ Setting</button>
+</div>
+
+<!-- LAYAR ADZAN -->
+<div id="layarAdzan">
+  <h1 id="adzanJudul">ADZAN DZUHUR</h1>
+  <p>Telah masuk waktu sholat</p>
+  <p style="font-size:16px;opacity:.6;margin-top:30px">Adzan akan berhenti otomatis, lalu masuk hitung mundur iqomah</p>
+  <button onclick="stopAdzan()" style="margin-top:20px;padding:12px 25px;border-radius:50px;border:none;font-weight:bold;cursor:pointer">⏹ Stop Adzan</button>
+</div>
+
+<div id="layarIqomah">
+  <h1 id="iqomahJudul">IQOMAH DZUHUR</h1>
+  <div class="waktuBesar" id="iqomahWaktu">10:00</div>
+  <div style="font-size:24px" id="iqomahSub">Persiapkan diri</div>
+  <div style="margin-top:20px;opacity:.6" id="iqomahJam">00:00:00</div>
+</div>
+
+<div id="layarJumbotron" onclick="tutupJumbotron()">
+  <div id="jJudul">JUDUL</div>
+  <div id="jIsi">ISI</div>
+  <div id="jDot">● ● ●</div>
+  <div id="jFooter">MASJID AL-IKHLAS • PEKANBARU</div>
+  <p style="margin-top:30px;font-size:13px;opacity:.6">Klik layar untuk kembali ke jam</p>
+</div>
+
+<audio id="audioAdzan" preload="auto" src="https://cdn.aladhan.com/audio/adhans/a1.mp3"></audio>
+<audio id="audioBeep" preload="auto" src="https://cdn.aladhan.com/audio/adhans/a1.mp3"></audio>
+
+<div id="panel"><div class="box">
+  <h2>Setting Final</h2>
+  <label>Nama Masjid</label><input id="inNama">
+  <label>Kota</label><input id="inKota">
+  <label>Running Text</label><input id="inRunning">
+  <label>Suara Adzan</label>
+  <select id="inSuara"><option value="on">ON - Bunyi adzan tiap waktu</option><option value="off">OFF - Silent (hanya tampilan)</option><option value="beep">Beep saja (tanpa adzan panjang)</option></select>
+  <label>Pilih Muadzin / Suara Adzan</label>
+  <select id="inPilihanAdzan">
+    <option value="https://cdn.aladhan.com/audio/adhans/a1.mp3">Mishary Rashid - Merdu (Default)</option>
+    <option value="https://cdn.aladhan.com/audio/adhans/a2.mp3">Adzan 2 - Khas Masjidil Haram</option>
+    <option value="https://cdn.aladhan.com/audio/adhans/a3.mp3">Adzan 3</option>
+    <option value="https://cdn.aladhan.com/audio/adhans/a4.mp3">Adzan 4</option>
+    <option value="https://cdn.aladhan.com/audio/adhans/a5.mp3">Adzan 5</option>
+  </select>
+  <label>Durasi Iqomah Maghrib (menit)</label><input id="inIqMaghrib" type="number" value="5">
+  <label>Durasi Iqomah Lainnya (menit)</label><input id="inIqLain" type="number" value="10">
+  <hr style="margin:20px 0">
+  <h3>➕ Tambah Slide Jumbotron</h3>
+  <label>Judul Slide</label><input id="inJJudul" placeholder="Kajian Subuh Ahad">
+  <label>Isi</label><textarea id="inJIsi" rows="2"></textarea>
+  <label>Link Gambar (opsional)</label><input id="inJGambar" placeholder="https://...jpg">
+  <label>Durasi (detik)</label><input id="inJDurasi" type="number" value="10">
+  <button class="btn" style="background:#ffc107" onclick="tambahSlide()">➕ TAMBAH SLIDE</button>
+  <div id="listSlide"></div>
+  <label>Auto Jumbotron tiap (menit, 0=mati)</label><input id="inAuto" type="number" value="2">
+  <button class="btn simpan" onclick="simpan()">💾 SIMPAN SEMUA</button>
+  <button class="btn" style="background:#eee" onclick="tutup()">Tutup</button>
+  <p style="font-size:12px;color:#888;margin-top:10px">Catatan: Agar suara jalan di TV, buka file ini di Chrome dan klik 1x di layar saat pertama buka. File ini butuh internet HANYA untuk download suara adzan pertama kali. Setelah itu suara tersimpan di cache.</p>
+</div></div>
+
+<script>
+let config = JSON.parse(localStorage.getItem('configV6')||'null') || {
+  nama:"MASJID AL-IKHLAS", kota:"Pekanbaru - Riau", lat:0.5071, lng:101.4478, tz:7, koreksi:2,
+  running:"Selamat Datang di Masjid Al-Ikhlas Pekanbaru • Mohon HP di-silent saat sholat",
+  iqomah:{"Subuh":10,"Dzuhur":10,"Ashar":10,"Maghrib":5,"Isya":10}, durasiShaf:30,
+  autoJumbotronMenit:2, suara:"on", pilihanAdzan:"https://cdn.aladhan.com/audio/adhans/a1.mp3",
+  slides:[
+    {judul:"KAJIAN SUBUH AHAD", isi:"Bersama Ustadz Ahmad • Setiap Ahad Jam 05.30 WIB", gambar:"", durasi:10},
+    {judul:"DONASI PEMBANGUNAN", isi:"Bantu renovasi tempat wudhu. Salurkan infak terbaik Anda.", gambar:"", durasi:10}
+  ]
+};
+let modeIqomah=null, modeShafSampai=0, modeAdzan=null;
+let jumbotronAktif=false, jIndex=0, jTimeout=null, lastJumbotronAt=Date.now();
+let sudahKlikSekali=false;
+
+document.addEventListener('click',()=>{ sudahKlikSekali=true; }, {once:false});
+document.getElementById('audioAdzan').src=config.pilihanAdzan;
+
+function terapkan(){
+  document.getElementById('namaMasjid').textContent=config.nama;
+  document.getElementById('namaKota').textContent=config.kota;
+  document.getElementById('teksJalan').textContent=config.running;
+  document.getElementById('infoKoordinat').textContent=`Otomatis • ${config.kota} • Metode Kemenag`;
+  document.getElementById('jFooter').textContent=config.nama+" • "+config.kota;
+  document.getElementById('btnSuara').textContent = config.suara==="on" ? "🔊 Suara: ON" : config.suara==="off" ? "🔇 Suara: OFF" : "🔔 Suara: Beep";
+  document.getElementById('audioAdzan').src=config.pilihanAdzan;
+}
+function bukaSetting(){
+  document.getElementById('inNama').value=config.nama;
+  document.getElementById('inKota').value=config.kota;
+  document.getElementById('inRunning').value=config.running;
+  document.getElementById('inSuara').value=config.suara;
+  document.getElementById('inPilihanAdzan').value=config.pilihanAdzan;
+  document.getElementById('inIqMaghrib').value=config.iqomah.Maghrib;
+  document.getElementById('inIqLain').value=config.iqomah.Dzuhur;
+  document.getElementById('inAuto').value=config.autoJumbotronMenit;
+  renderSlideList(); document.getElementById('panel').style.display='flex';
+}
+function tutup(){ document.getElementById('panel').style.display='none'; }
+function renderSlideList(){
+  let html=""; config.slides.forEach((s,i)=>{ html+=`<div class="slideItem"><button onclick="hapusSlide(${i})">Hapus</button><b>${i+1}. ${s.judul}</b><br>${s.isi}<br><small>${s.durasi} detik</small></div>`; });
+  document.getElementById('listSlide').innerHTML=html||"<p style='font-size:13px'>Belum ada slide</p>";
+}
+function tambahSlide(){
+  const judul=document.getElementById('inJJudul').value.trim();
+  if(!judul) return alert('Isi judul dulu');
+  config.slides.push({judul, isi:document.getElementById('inJIsi').value.trim(), gambar:document.getElementById('inJGambar').value.trim(), durasi:parseInt(document.getElementById('inJDurasi').value||10)});
+  document.getElementById('inJJudul').value=""; document.getElementById('inJIsi').value="";
+  renderSlideList(); alert('Slide ditambahkan! Klik SIMPAN SEMUA');
+}
+function hapusSlide(i){ config.slides.splice(i,1); renderSlideList(); }
+function simpan(){
+  config.nama=document.getElementById('inNama').value; config.kota=document.getElementById('inKota').value;
+  config.running=document.getElementById('inRunning').value; config.suara=document.getElementById('inSuara').value;
+  config.pilihanAdzan=document.getElementById('inPilihanAdzan').value;
+  config.iqomah.Maghrib=parseInt(document.getElementById('inIqMaghrib').value);
+  let lain=parseInt(document.getElementById('inIqLain').value);
+  config.iqomah.Subuh=lain; config.iqomah.Dzuhur=lain; config.iqomah.Ashar=lain; config.iqomah.Isya=lain;
+  config.autoJumbotronMenit=parseInt(document.getElementById('inAuto').value||0);
+  localStorage.setItem('configV6',JSON.stringify(config)); terapkan(); tutup(); alert('Disimpan!');
+}
+function toggleFullscreen(){
+  try{ if(!document.fullscreenElement){ if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>alert('Buka di Chrome agar fullscreen jalan')); } else document.exitFullscreen(); }catch(e){ alert('Buka file ini di Chrome'); }
+}
+function toggleSuara(){
+  config.suara = config.suara==="on" ? "off" : "on";
+  localStorage.setItem('configV6',JSON.stringify(config)); terapkan();
+  if(config.suara==="on") tesAdzan();
+}
+// ===== ADZAN =====
+function tesAdzan(){ mulaiAdzan("Dzuhur"); }
+function mulaiAdzan(nama){
+  tutupJumbotron();
+  document.getElementById('adzanJudul').textContent="ADZAN "+nama.toUpperCase();
+  document.getElementById('layarAdzan').style.display='flex';
+  modeAdzan={nama, mulai:Date.now()};
+  if(config.suara==="on"){
+    const a=document.getElementById('audioAdzan');
+    a.currentTime=0; a.play().catch(()=>alert('Klik 1x di layar dulu agar suara bisa bunyi (aturan Chrome). Coba klik Tes Adzan lagi.'));
+    a.onended=()=>{ stopAdzan(); };
+    // Auto stop setelah 4 menit kalau audio gagal / kepanjangan, lalu iqomah
+    setTimeout(()=>{ if(modeAdzan && modeAdzan.nama===nama) stopAdzan(); }, 4*60*1000);
+  } else if(config.suara==="beep"){
+    // Beep 3x sebagai tanda
+    let n=0; const beep=setInterval(()=>{ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(); o.connect(ctx.destination); o.start(); setTimeout(()=>o.stop(),800);}catch(e){} n++; if(n>=3) clearInterval(beep); },1000);
+    setTimeout(()=>{ if(modeAdzan) stopAdzan(); }, 5000);
+  } else {
+    // Silent: tampil 10 detik saja lalu iqomah
+    setTimeout(()=>{ if(modeAdzan) stopAdzan(); }, 10000);
+  }
+}
+function stopAdzan(){
+  const a=document.getElementById('audioAdzan'); a.pause(); a.currentTime=0;
+  document.getElementById('layarAdzan').style.display='none';
+  if(modeAdzan){ const nama=modeAdzan.nama; modeAdzan=null; mulaiIqomah(nama, config.iqomah[nama]||10); }
+}
+function mulaiIqomah(nama,durasi){
+  modeIqomah={nama, selesai:Date.now()+durasi*60*1000};
+  document.getElementById('layarIqomah').style.display='flex';
+  document.getElementById('iqomahJudul').textContent="IQOMAH "+nama.toUpperCase();
+}
+document.getElementById('layarIqomah').addEventListener('click',()=>{ modeIqomah=null; modeShafSampai=0; document.getElementById('layarIqomah').style.display='none'; });
+function mulaiJumbotron(){
+  if(!config.slides.length) return alert('Belum ada slide');
+  if(modeIqomah||modeAdzan) return;
+  jumbotronAktif=true; jIndex=0; tampilkanSlide();
+  document.getElementById('layarJumbotron').style.display='flex';
+}
+function tampilkanSlide(){
+  if(!jumbotronAktif) return;
+  const s=config.slides[jIndex%config.slides.length];
+  document.getElementById('jJudul').textContent=s.judul;
+  document.getElementById('jIsi').textContent=s.isi;
+  const el=document.getElementById('layarJumbotron');
+  el.style.backgroundImage=s.gambar?`url('${s.gambar}')`:'none';
+  el.style.backgroundColor=s.gambar?'#000':'#0a3d2e';
+  document.getElementById('jDot').textContent=config.slides.map((_,i)=>i===(jIndex%config.slides.length)?'●':'○').join(' ');
+  clearTimeout(jTimeout);
+  jTimeout=setTimeout(()=>{ jIndex++; if(jIndex>=config.slides.length) tutupJumbotron(); else tampilkanSlide(); }, (s.durasi||10)*1000);
+}
+function tutupJumbotron(){ jumbotronAktif=false; clearTimeout(jTimeout); document.getElementById('layarJumbotron').style.display='none'; lastJumbotronAt=Date.now(); }
+terapkan();
+function toRad(d){return d*Math.PI/180} function toDeg(r){return r*180/Math.PI}
+function hitungJadwal(date){
+  const lat=config.lat, lng=config.lng, tz=config.tz;
+  const start=new Date(date.getFullYear(),0,0); const doy=Math.floor((date-start)/86400000);
+  const decl=-23.45*Math.cos(toRad(360/365*(doy+10)));
+  const eqt=9.87*Math.sin(toRad(2*360/365*(doy-81))) -7.53*Math.cos(toRad(360/365*(doy-81))) -1.5*Math.sin(toRad(360/365*(doy-81)));
+  const transit=12 + tz - lng/15 - eqt/60;
+  function sunAngle(a,m){ const c=(Math.sin(toRad(a))-Math.sin(toRad(lat))*Math.sin(toRad(decl)))/(Math.cos(toRad(lat))*Math.cos(toRad(decl))); const H=toDeg(Math.acos(Math.min(1,Math.max(-1,c))))/15; return m?transit-H:transit+H; }
+  function ashar(){ const alt=Math.atan(1/(1+Math.tan(Math.abs(toRad(lat-decl))))); const c=(Math.sin(alt)-Math.sin(toRad(lat))*Math.sin(toRad(decl)))/(Math.cos(toRad(lat))*Math.cos(toRad(decl))); return transit+toDeg(Math.acos(Math.min(1,Math.max(-1,c))))/15; }
+  function fmt(h){ h+=config.koreksi/60; let hh=Math.floor(h), mm=Math.round((h-hh)*60); if(mm===60){hh++;mm=0} if(hh>=24)hh-=24; return String(hh).padStart(2,'0')+":"+String(mm).padStart(2,'0'); }
+  return {"Subuh":fmt(sunAngle(-20,true)),"Dzuhur":fmt(transit+0.033),"Ashar":fmt(ashar()),"Maghrib":fmt(sunAngle(-0.833,false)),"Isya":fmt(sunAngle(-18,false))};
+}
+function update(){
+  const now=new Date();
+  document.getElementById('jam').textContent=now.toLocaleTimeString('id-ID',{hour12:false});
+  document.getElementById('iqomahJam').textContent=now.toLocaleTimeString('id-ID',{hour12:false});
+  const masehi=now.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  let hijriah=""; try{hijriah=new Intl.DateTimeFormat('id-ID-u-ca-islamic',{day:'numeric',month:'long',year:'numeric'}).format(now);}catch(e){}
+  document.getElementById('tanggal').textContent=masehi+" | "+hijriah+" H";
+  const jadwal=hitungJadwal(now); const nowMenit=now.getHours()*60+now.getMinutes();
+  if(config.autoJumbotronMenit>0 && !jumbotronAktif && !modeIqomah && !modeAdzan && Date.now()-lastJumbotronAt>config.autoJumbotronMenit*60*1000) mulaiJumbotron();
+  for(let nama in jadwal){
+    const [h,m]=jadwal[nama].split(":").map(Number);
+    if(now.getHours()===h && now.getMinutes()===m && now.getSeconds()<2 && !modeIqomah && !modeAdzan && Date.now()>modeShafSampai){ mulaiAdzan(nama); }
+  }
+  if(modeIqomah){
+    const sisa=Math.max(0,Math.floor((modeIqomah.selesai-Date.now())/1000));
+    document.getElementById('iqomahWaktu').textContent=String(Math.floor(sisa/60)).padStart(2,'0')+":"+String(sisa%60).padStart(2,'0');
+    if(sisa<=0){ modeShafSampai=Date.now()+config.durasiShaf*1000; document.getElementById('iqomahJudul').textContent="LURUSKAN & RAPATKAN SHAF"; document.getElementById('iqomahSub').textContent="Sholat akan segera dimulai"; modeIqomah=null; }
+    return;
+  }
+  if(Date.now()<modeShafSampai){
+    const sisa=Math.ceil((modeShafSampai-Date.now())/1000);
+    document.getElementById('layarIqomah').style.display='flex';
+    document.getElementById('iqomahWaktu').textContent="00:"+String(sisa).padStart(2,'0');
+    return;
+  } else if(modeShafSampai!==0 && Date.now()>=modeShafSampai){ modeShafSampai=0; document.getElementById('layarIqomah').style.display='none'; }
+  let html=""; let nextName=null,nextTime=null;
+  for(let nama in jadwal){
+    const [h,m]=jadwal[nama].split(":").map(Number); const menit=h*60+m;
+    let aktif=(nowMenit>=menit && nowMenit<menit+60);
+    if(!nextTime && menit>nowMenit){nextName=nama;nextTime=menit;}
+    html+=`<div class="card ${aktif?'active':''}"><div class="nama">${nama}</div><div class="waktu">${jadwal[nama]}</div></div>`;
+  }
+  document.getElementById('jadwal').innerHTML=html;
+  if(!nextTime){nextName="Subuh"; const besok=hitungJadwal(new Date(now.getTime()+86400000)); const [h,m]=besok.Subuh.split(":").map(Number); nextTime=h*60+m+1440;}
+  let selisih=nextTime-nowMenit; if(selisih<0)selisih+=1440;
+  document.getElementById('countdown').textContent=`Menuju ${nextName} : ${Math.floor(selisih/60)} jam ${selisih%60} menit ${59-now.getSeconds()} detik`;
+}
+setInterval(update,1000); update();
+</script>
+<!-- ===== REMOT HP - VERSI 7 ===== -->
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script
